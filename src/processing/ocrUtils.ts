@@ -15,10 +15,10 @@ export interface OcrBlock {
 }
 
 /**
- * Parse EasyOCR blocks from image with OCR data
+ * Parse OCR blocks from image with OCR data
  * Converts OCR bounding boxes from image space to page space
  */
-export function parseEasyOCRBlocks(image: Image): OcrBlock[] {
+export function parseImageOcrBlocks(image: Image): OcrBlock[] {
   if (!image || !image.ocrRaw?.length) {
     return [];
   }

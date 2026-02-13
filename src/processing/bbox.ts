@@ -6,7 +6,7 @@ import {
   LiteParseConfig,
 } from '../core/types.js';
 import { PageData, Image } from '../engines/pdf/interface.js';
-import { parseEasyOCRBlocks, OcrBlock } from './ocrUtils.js';
+import { parseImageOcrBlocks, OcrBlock } from './ocrUtils.js';
 
 const OCR_CONFIDENCE_THRESHOLD = 0.1;
 
@@ -246,7 +246,7 @@ export function buildBbox(
     for (const image of imagesToProcess) {
 
       // Parse OCR blocks from image
-      let ocrData = parseEasyOCRBlocks(image);
+      let ocrData = parseImageOcrBlocks(image);
 
       // Filter by confidence threshold
       ocrData = ocrData.filter(
