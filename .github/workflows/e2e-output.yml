@@ -142,4 +142,4 @@ jobs:
             echo "Warning: HF_TOKEN not set, skipping upload"
             exit 0
           fi
-          npx tsx scripts/upload-dataset.ts expected-dataset ${{ vars.HF_DATASET_REPO || 'liteparse/e2e-test-outputs' }}
+          npx tsx scripts/upload-dataset.ts expected-dataset ${{ vars.HF_DATASET_REPO || 'llamaindex/liteparse_cicd_data' }}

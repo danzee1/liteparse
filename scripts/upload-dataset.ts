@@ -7,7 +7,7 @@
  * Arguments:
  *   dataset-dir - Directory containing the dataset with documents/ subfolder
  *                 (default: ./dataset)
- *   repo-name   - HuggingFace repository name (default: liteparse/e2e-test-outputs)
+ *   repo-name   - HuggingFace repository name (default: llamaindex/liteparse_cicd_data)
  *
  * Environment variables:
  *   HF_TOKEN - HuggingFace API token with write access
@@ -21,7 +21,7 @@ import { execSync } from "child_process";
 import * as path from "path";
 
 const DEFAULT_OUTPUT_DIR = path.join(import.meta.dirname, "..", "dataset");
-const DEFAULT_REPO = "liteparse/e2e-test-outputs";
+const DEFAULT_REPO = "llamaindex/liteparse_cicd_data";
 
 async function main() {
   const datasetDir = process.argv[2] || DEFAULT_OUTPUT_DIR;
