@@ -102,13 +102,18 @@ program
       }
 
       // Override with CLI options
+      let calculatedNumWorkers = os.cpus().length - 1;
+      if (calculatedNumWorkers < 1) {
+        calculatedNumWorkers = 1;
+      }
+
       config = {
         ...config,
         outputFormat: options.format as OutputFormat,
         ocrEnabled: options.ocr !== false,
         ocrServerUrl: options.ocrServerUrl,
         ocrLanguage: options.ocrLanguage,
-        numWorkers: parseInt(options.numWorkers || (os.cpus().length - 1).toString()),
+        numWorkers: parseInt(options.numWorkers || calculatedNumWorkers.toString()),
         maxPages: parseInt(options.maxPages || DEFAULT_MAX_PAGES.toString()),
         targetPages: options.targetPages,
         dpi: parseInt(options.dpi || DEFAULT_DPI.toString()),
@@ -339,13 +344,18 @@ program
       }
 
       // Apply CLI options
+      let calculatedNumWorkers = os.cpus().length - 1;
+      if (calculatedNumWorkers < 1) {
+        calculatedNumWorkers = 1;
+      }
+
       config = {
         ...config,
         outputFormat: options.format as OutputFormat,
         ocrEnabled: options.ocr !== false,
         ocrServerUrl: options.ocrServerUrl,
         ocrLanguage: options.ocrLanguage,
-        numWorkers: parseInt(options.numWorkers || (os.cpus().length - 1).toString()),
+        numWorkers: parseInt(options.numWorkers || calculatedNumWorkers.toString()),
         maxPages: parseInt(options.maxPages || DEFAULT_MAX_PAGES.toString()),
         dpi: parseInt(options.dpi || DEFAULT_DPI.toString()),
         preciseBoundingBox: options.preciseBbox !== false,
