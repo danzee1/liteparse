@@ -791,27 +791,9 @@ export function bboxToLine(
       const bboxIsMargin = bbox.isMarginLineNumber === true;
       const marginMismatch = currentLineHasMargin !== bboxIsMargin;
 
-      // Detect if bbox is in a different column based on large horizontal gap
-      // This works for any number of columns (2, 3, or more)
-      let inDifferentColumn = false;
-      if (pageWidth && currentLine.length > 0) {
-        // Get the extents of the current line
-        const rightmostInLine = Math.max(...currentLine.map((b) => b.x + b.w));
-
-        // Calculate the gap between the current line and the new bbox
-        const horizontalGap = bbox.x - rightmostInLine;
-
-        // Use a threshold based on page width - if gap is > 5% of page width,
-        // treat as different column. This works for any number of columns.
-        const columnGapThreshold = pageWidth * 0.05;
-
-        inDifferentColumn = horizontalGap > columnGapThreshold;
-      }
-
       if (
         !lineCollide &&
         !marginMismatch &&
-        !inDifferentColumn &&
         ((bbox.y + bbox.h * 0.5 >= lineMinY && bbox.y + bbox.h * 0.5 <= lineMaxY) ||
           (bbox.y >= lineMinY && bbox.y <= lineMaxY))
       ) {
