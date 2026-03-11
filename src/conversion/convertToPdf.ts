@@ -148,11 +148,7 @@ async function executeCommand(command: string, args: string[], timeoutMs = 60000
 
 /* Execute a command for PowerShell */
 async function executePowerShell(command: string, timeoutMs = 60000) {
-  return executeCommand(
-    "powershell",
-    ["-NoProfile", "-Command", command],
-    timeoutMs
-  );
+  return executeCommand("powershell", ["-NoProfile", "-Command", command], timeoutMs);
 }
 
 /**
@@ -193,12 +189,15 @@ async function isPathExecutable(filePath: string): Promise<boolean> {
  */
 export async function findLibreOfficeCommand(): Promise<string | null> {
   // Check for 'libreoffice' in PATH (Linux, some macOS setups)
-  if (await isCommandAvailable("libreoffice") || await isCommandAvailableWindows("libreoffice")) {
+  if (
+    (await isCommandAvailable("libreoffice")) ||
+    (await isCommandAvailableWindows("libreoffice"))
+  ) {
     return "libreoffice";
   }
 
   // Check for 'soffice' in PATH
-  if (await isCommandAvailable("soffice") || await isCommandAvailableWindows("soffice")) {
+  if ((await isCommandAvailable("soffice")) || (await isCommandAvailableWindows("soffice"))) {
     return "soffice";
   }
 
@@ -208,9 +207,7 @@ export async function findLibreOfficeCommand(): Promise<string | null> {
     "/Applications/LibreOffice.app/Contents/MacOS/libreoffice",
   ];
 
-  const windowsPaths = [
-    "C:\\Program Files\\Libreoffice\\program\\soffice.exe"
-  ]
+  const windowsPaths = ["C:\\Program Files\\Libreoffice\\program\\soffice.exe"];
 
   for (const libPath of macOSPaths) {
     if (await isPathExecutable(libPath)) {
@@ -235,12 +232,12 @@ export async function findImageMagickCommand(): Promise<{
   args: string[];
 } | null> {
   // ImageMagick v7 uses 'magick' command
-  if (await isCommandAvailable("magick") || await isCommandAvailableWindows("magick")) {
+  if ((await isCommandAvailable("magick")) || (await isCommandAvailableWindows("magick"))) {
     return { command: "magick", args: [] };
   }
 
   // ImageMagick v6 uses 'convert' command
-  if (await isCommandAvailable("convert") || await isCommandAvailableWindows("convert")) {
+  if ((await isCommandAvailable("convert")) || (await isCommandAvailableWindows("convert"))) {
     return { command: "convert", args: [] };
   }
 
@@ -254,7 +251,7 @@ export async function convertOfficeDocument(filePath: string, outputDir: string)
   const libreOfficeCmd = await findLibreOfficeCommand();
   if (!libreOfficeCmd) {
     throw new Error(
-      "LibreOffice is not installed. Please install LibreOffice to convert office documents. On macOS: brew install --cask libreoffice, On Ubuntu: apt-get install libreoffice"
+      "LibreOffice is not installed. Please install LibreOffice to convert office documents. On macOS: brew install --cask libreoffice, On Ubuntu: apt-get install libreoffice, On Windows: choco install libreoffice-fresh"
     );
   }
 
@@ -287,7 +284,7 @@ export async function convertImageToPdf(filePath: string, outputDir: string): Pr
   const imageMagick = await findImageMagickCommand();
   if (!imageMagick) {
     throw new Error(
-      "ImageMagick is not installed. Please install ImageMagick to convert images. On macOS: brew install imagemagick, On Ubuntu: apt-get install imagemagick"
+      "ImageMagick is not installed. Please install ImageMagick to convert images. On macOS: brew install imagemagick, On Ubuntu: apt-get install imagemagick, On Windows: choco install imagemagick.app"
     );
   }
 
@@ -296,11 +293,12 @@ export async function convertImageToPdf(filePath: string, outputDir: string): Pr
 
   // Check for Ghostscript if needed for this file type
   if (needsGhostscript) {
-    const hasGhostscript = await isCommandAvailable("gs");
+    const hasGhostscript =
+      (await isCommandAvailable("gs")) || (await isCommandAvailableWindows("gs"));
     if (!hasGhostscript) {
       throw new Error(
         `Ghostscript is required to convert ${ext.toUpperCase().slice(1)} files but is not installed. ` +
-          "On macOS: brew install ghostscript, On Ubuntu: apt-get install ghostscript"
+          "On macOS: brew install ghostscript, On Ubuntu: apt-get install ghostscript, On Windows: choco install ghostscript"
       );
     }
   }
@@ -320,7 +318,7 @@ export async function convertImageToPdf(filePath: string, outputDir: string): Pr
     if (errorMsg.includes("gs") && errorMsg.includes("command not found")) {
       throw new Error(
         `Ghostscript is required to convert ${ext.toUpperCase().slice(1)} files but is not installed. ` +
-          "On macOS: brew install ghostscript, On Ubuntu: apt-get install ghostscript",
+          "On macOS: brew install ghostscript, On Ubuntu: apt-get install ghostscript, On Windows: choco install ghostscript",
         {
           cause: error,
         }
