@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 echo "Installing homebrew-npm-noob tool"
 uv tool install --upgrade homebrew-npm-noob
