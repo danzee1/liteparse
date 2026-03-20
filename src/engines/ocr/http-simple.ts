@@ -27,11 +27,15 @@ export class HttpOcrEngine implements OcrEngine {
     this.serverUrl = serverUrl;
   }
 
-  async recognize(imagePath: string, options: OcrOptions): Promise<OcrResult[]> {
+  async recognize(image: string | Buffer, options: OcrOptions): Promise<OcrResult[]> {
     try {
       // Prepare request
       const formData = new FormData();
-      formData.append("file", fs.createReadStream(imagePath));
+      if (typeof image === "string") {
+        formData.append("file", fs.createReadStream(image));
+      } else {
+        formData.append("file", image, { filename: "image.png", contentType: "image/png" });
+      }
 
       const language = Array.isArray(options.language) ? options.language[0] : options.language;
       formData.append("language", language);
@@ -56,23 +60,24 @@ export class HttpOcrEngine implements OcrEngine {
         confidence: item.confidence,
       }));
     } catch (error) {
+      const label = typeof image === "string" ? image : "<buffer>";
       if (axios.isAxiosError(error)) {
         console.error(
-          `OCR HTTP error for ${imagePath}:`,
+          `OCR HTTP error for ${label}:`,
           error.response?.status,
           error.response?.data?.error || error.message
         );
       } else {
-        console.error(`OCR error for ${imagePath}:`, error);
+        console.error(`OCR error for ${label}:`, error);
       }
       return [];
     }
   }
 
-  async recognizeBatch(imagePaths: string[], options: OcrOptions): Promise<OcrResult[][]> {
+  async recognizeBatch(images: (string | Buffer)[], options: OcrOptions): Promise<OcrResult[][]> {
     const results: OcrResult[][] = [];
-    for (const imagePath of imagePaths) {
-      const result = await this.recognize(imagePath, options);
+    for (const image of images) {
+      const result = await this.recognize(image, options);
       results.push(result);
     }
     return results;

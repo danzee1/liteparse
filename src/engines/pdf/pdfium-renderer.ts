@@ -16,7 +16,7 @@ export class PdfiumRenderer {
   }
 
   async renderPageToBuffer(
-    pdfPath: string,
+    pdfInput: string | Buffer | Uint8Array,
     pageNumber: number,
     dpi: number = 150
   ): Promise<Buffer> {
@@ -26,8 +26,10 @@ export class PdfiumRenderer {
       throw new Error("PDFium not initialized");
     }
 
-    // Read PDF file
-    const pdfBuffer = await fs.readFile(pdfPath);
+    // Accept file path or raw bytes
+    const pdfBuffer = typeof pdfInput === "string"
+      ? await fs.readFile(pdfInput)
+      : Buffer.from(pdfInput);
 
     // Load document
     const document = await this.pdfium.loadDocument(pdfBuffer);

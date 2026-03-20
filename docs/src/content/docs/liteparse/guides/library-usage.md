@@ -62,9 +62,30 @@ const parser = new LiteParse({
 });
 ```
 
+### Buffer / Uint8Array input
+
+You can pass raw bytes directly instead of a file path. PDF buffers are parsed with **zero disk I/O** — no temp files are written:
+
+```typescript
+import { readFile } from "fs/promises";
+
+const parser = new LiteParse();
+
+// From a file read
+const pdfBytes = await readFile("document.pdf");
+const result = await parser.parse(pdfBytes);
+
+// From an HTTP response
+const response = await fetch("https://example.com/document.pdf");
+const buffer = Buffer.from(await response.arrayBuffer());
+const result2 = await parser.parse(buffer);
+```
+
+Non-PDF buffers (images, Office documents) are written to a temp directory for format conversion. You can control the temp directory with the `LITEPARSE_TMPDIR` environment variable.
+
 ### Screenshots
 
-Generate page images as buffers — useful for sending to LLMs or saving to disk:
+Generate page images as buffers — useful for sending to LLMs or saving to disk. Accepts file paths, `Buffer`, or `Uint8Array`:
 
 ```typescript
 const parser = new LiteParse();
@@ -74,7 +95,18 @@ for (const shot of screenshots) {
   console.log(`Page ${shot.pageNum}: ${shot.width}x${shot.height}`);
   // shot.imageBuffer contains the raw PNG/JPG data
 }
+
+// Also works with buffer input
+const pdfBytes = await readFile("document.pdf");
+const shots = await parser.screenshot(pdfBytes, [1, 2, 3]);
 ```
+
+### Environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `TESSDATA_PREFIX` | Path to a directory containing Tesseract `.traineddata` files. For offline/air-gapped environments. Also available as the `tessdataPath` config option. |
+| `LITEPARSE_TMPDIR` | Override the temp directory for format conversion. Defaults to `os.tmpdir()`. |
 
 See the [API reference](/liteparse/api/) for full type details.
 

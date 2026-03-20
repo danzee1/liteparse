@@ -143,6 +143,32 @@ const result = await parser.parse('document.pdf');
 console.log(result.text);
 ```
 
+#### Buffer / Uint8Array Input
+
+You can pass raw bytes directly instead of a file path. PDF buffers are parsed with **zero disk I/O** — no temp files are written:
+
+```typescript
+import { LiteParse } from '@llamaindex/liteparse';
+import { readFile } from 'fs/promises';
+
+const parser = new LiteParse();
+
+// From a file read
+const pdfBytes = await readFile('document.pdf');
+const result = await parser.parse(pdfBytes);
+
+// From an HTTP response
+const response = await fetch('https://example.com/document.pdf');
+const buffer = Buffer.from(await response.arrayBuffer());
+const result2 = await parser.parse(buffer);
+```
+
+Non-PDF buffers (images, Office documents) are written to a temp directory for format conversion. Screenshots also work with buffer input:
+
+```typescript
+const screenshots = await parser.screenshot(pdfBytes, [1, 2, 3]);
+```
+
 ### CLI Options
 
 #### Parse Command
@@ -227,6 +253,19 @@ lit parse document.pdf --ocr-language fra
 lit parse document.pdf --no-ocr
 ```
 
+By default, Tesseract.js downloads language data from the internet on first use. For offline or air-gapped environments, set the `TESSDATA_PREFIX` environment variable to a directory containing pre-downloaded `.traineddata` files:
+
+```bash
+export TESSDATA_PREFIX=/path/to/tessdata
+lit parse document.pdf --ocr-language eng
+```
+
+You can also pass `tessdataPath` in the library config:
+
+```typescript
+const parser = new LiteParse({ tessdataPath: '/path/to/tessdata' });
+```
+
 ### Optional: HTTP OCR Servers
 
 For higher accuracy or better performance, you can use an HTTP OCR server. We provide ready-to-use example wrappers for popular OCR engines:
@@ -286,6 +325,13 @@ apt-get install imagemagick
 # Windows
 choco install imagemagick.app # might require admin permissions
 ```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `TESSDATA_PREFIX` | Path to a directory containing Tesseract `.traineddata` files. Used for offline/air-gapped environments where Tesseract.js cannot download language data from the internet. |
+| `LITEPARSE_TMPDIR` | Override the temp directory used for format conversion and intermediate files. Defaults to the OS temp directory (`os.tmpdir()`). Useful in containerized or read-only filesystem environments. |
 
 ## Configuration
 

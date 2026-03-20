@@ -29,19 +29,31 @@ LiteParse's core parsing works on PDFs. This module extends support to 50+ forma
 
 **Key Functions:**
 
-`convertToPdf(filePath)` - Main entry point
+`convertToPdf(filePath)` - Main entry point for file path input
 - Returns `ConversionResult` with `pdfPath` and `originalExtension`
 - Returns `ConversionPassthrough` with `content` for text-based formats (e.g. .txt, .csv)
 - Returns `ConversionError` with `message` and `code` on failure
 - If already PDF, returns path unchanged
 
+`convertBufferToPdf(data)` - Entry point for buffer input
+- Detects format from magic bytes, writes to temp file, then delegates to `convertToPdf`
+- Used when `LiteParse.parse()` receives a non-PDF `Buffer` or `Uint8Array`
+
 `cleanupConversionFiles(pdfPath)` - Removes temp files after parsing
-- Only deletes files in system temp directory
+- Only deletes files in the configured temp directory (`LITEPARSE_TMPDIR` or OS default)
 - Called by `LiteParse.parse()` after processing
+
+`getTmpDir()` - Returns the temp directory for LiteParse operations
+- Respects the `LITEPARSE_TMPDIR` environment variable
+- Falls back to `os.tmpdir()`
 
 `guessFileExtension(filePath)` - Detects format from extension or magic bytes
 - Checks file extension first
 - Falls back to magic byte detection (PDF, PNG, JPEG, ZIP-based)
+
+`guessExtensionFromBuffer(data)` - Detects format from raw bytes using magic bytes
+- Supports PDF, PNG, JPEG, TIFF (both endians), and ZIP-based formats
+- Used by `convertBufferToPdf` to determine the temp file extension
 
 **Design Decisions:**
 
@@ -49,7 +61,7 @@ LiteParse's core parsing works on PDFs. This module extends support to 50+ forma
 
 2. **Subprocess-based**: Conversion runs as separate process to isolate crashes and memory issues.
 
-3. **Temporary file management**: Converted PDFs go to system temp directory, cleaned up after parsing.
+3. **Temporary file management**: Converted PDFs go to the configured temp directory (`LITEPARSE_TMPDIR` env var or OS default), cleaned up after parsing.
 
 4. **Timeout handling**: 2 minutes for LibreOffice, 1 minute for ImageMagick.
 

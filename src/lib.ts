@@ -15,6 +15,7 @@
 export { LiteParse } from "./core/parser.js";
 export type {
   LiteParseConfig,
+  LiteParseInput,
   OutputFormat,
   ParseResult,
   ParseResultJson,

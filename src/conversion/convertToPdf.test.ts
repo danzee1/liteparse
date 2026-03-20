@@ -1,4 +1,4 @@
-import { vi, describe, it, expect } from "vitest";
+import { vi, describe, it, expect, afterEach } from "vitest";
 import { EventEmitter } from "events";
 
 const mockFd = {
@@ -52,11 +52,13 @@ vi.mock("fs", async () => {
 
 import {
   guessFileExtension,
+  guessExtensionFromBuffer,
   findImageMagickCommand,
   findLibreOfficeCommand,
   convertOfficeDocument,
   convertImageToPdf,
   convertToPdf,
+  getTmpDir,
 } from "./convertToPdf";
 
 describe("test guessFileExtension", () => {
@@ -232,5 +234,70 @@ describe("test convertToPdf", () => {
     expect(result).toStrictEqual({
       content: "hello world",
     });
+  });
+});
+
+describe("test guessExtensionFromBuffer", () => {
+  it("detects PDF from magic bytes", () => {
+    const pdfBytes = Buffer.from("%PDF-1.4 some content");
+    expect(guessExtensionFromBuffer(pdfBytes)).toBe(".pdf");
+  });
+
+  it("detects PNG from magic bytes", () => {
+    const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    expect(guessExtensionFromBuffer(pngBytes)).toBe(".png");
+  });
+
+  it("detects JPEG from magic bytes", () => {
+    const jpegBytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+    expect(guessExtensionFromBuffer(jpegBytes)).toBe(".jpg");
+  });
+
+  it("detects TIFF (little-endian) from magic bytes", () => {
+    const tiffBytes = Buffer.from([0x49, 0x49, 0x2a, 0x00]);
+    expect(guessExtensionFromBuffer(tiffBytes)).toBe(".tiff");
+  });
+
+  it("detects TIFF (big-endian) from magic bytes", () => {
+    const tiffBytes = Buffer.from([0x4d, 0x4d, 0x00, 0x2a]);
+    expect(guessExtensionFromBuffer(tiffBytes)).toBe(".tiff");
+  });
+
+  it("detects ZIP-based formats from magic bytes", () => {
+    const zipBytes = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+    expect(guessExtensionFromBuffer(zipBytes)).toBe(".docx");
+  });
+
+  it("defaults to .pdf for unknown bytes", () => {
+    const unknownBytes = Buffer.from([0x00, 0x01, 0x02, 0x03]);
+    expect(guessExtensionFromBuffer(unknownBytes)).toBe(".pdf");
+  });
+
+  it("works with Uint8Array input", () => {
+    const pdfBytes = new Uint8Array(Buffer.from("%PDF-1.7"));
+    expect(guessExtensionFromBuffer(pdfBytes)).toBe(".pdf");
+  });
+});
+
+describe("test getTmpDir", () => {
+  const originalEnv = process.env.LITEPARSE_TMPDIR;
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.LITEPARSE_TMPDIR;
+    } else {
+      process.env.LITEPARSE_TMPDIR = originalEnv;
+    }
+  });
+
+  it("returns LITEPARSE_TMPDIR when set", () => {
+    process.env.LITEPARSE_TMPDIR = "/custom/tmp";
+    expect(getTmpDir()).toBe("/custom/tmp");
+  });
+
+  it("falls back to os.tmpdir() when LITEPARSE_TMPDIR is not set", () => {
+    delete process.env.LITEPARSE_TMPDIR;
+    const os = require("os");
+    expect(getTmpDir()).toBe(os.tmpdir());
   });
 });

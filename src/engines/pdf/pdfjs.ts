@@ -431,12 +431,21 @@ export class PdfJsEngine implements PdfEngine {
   name = "pdfjs";
   private pdfiumRenderer: PdfiumRenderer | null = null;
   private currentPdfPath: string | null = null;
+  private currentPdfData: Uint8Array | null = null;
 
-  async loadDocument(filePath: string): Promise<PdfDocument> {
-    const data = new Uint8Array(await fs.readFile(filePath));
+  async loadDocument(input: string | Uint8Array): Promise<PdfDocument> {
+    let data: Uint8Array;
+    if (typeof input === "string") {
+      data = new Uint8Array(await fs.readFile(input));
+      this.currentPdfPath = input;
+    } else {
+      // pdf.js requires a plain Uint8Array, not a Buffer subclass
+      data = new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+      this.currentPdfPath = null;
+    }
 
-    // Store path for PDFium rendering
-    this.currentPdfPath = filePath;
+    // Store data for buffer-based rendering
+    this.currentPdfData = data;
 
     const loadingTask = getDocument({
       data,
@@ -616,16 +625,17 @@ export class PdfJsEngine implements PdfEngine {
   }
 
   async renderPageImage(_doc: PdfDocument, pageNum: number, dpi: number): Promise<Buffer> {
-    // Use PDFium for rendering (more robust with inline images)
-    if (!this.currentPdfPath) {
-      throw new Error("PDF path not available for rendering");
-    }
-
     if (!this.pdfiumRenderer) {
       this.pdfiumRenderer = new PdfiumRenderer();
     }
 
-    return await this.pdfiumRenderer.renderPageToBuffer(this.currentPdfPath, pageNum, dpi);
+    // Use file path when available, otherwise pass buffer directly
+    const pdfInput = this.currentPdfPath || this.currentPdfData;
+    if (!pdfInput) {
+      throw new Error("No PDF path or data available for rendering");
+    }
+
+    return await this.pdfiumRenderer.renderPageToBuffer(pdfInput, pageNum, dpi);
   }
 
   async close(doc: PdfDocument): Promise<void> {
@@ -640,6 +650,7 @@ export class PdfJsEngine implements PdfEngine {
       this.pdfiumRenderer = null;
     }
     this.currentPdfPath = null;
+    this.currentPdfData = null;
   }
 
   private parseTargetPages(targetPages: string, maxPages: number): number[] {

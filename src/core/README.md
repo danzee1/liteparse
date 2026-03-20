@@ -14,15 +14,15 @@ The core module contains the main orchestrator class, configuration management, 
 - Handles format conversion for non-PDF inputs
 
 **Public Methods:**
-- `parse(filePath, quiet?)` - Main entry point for document parsing
-- `screenshot(filePath, pageNumbers?, quiet?)` - Generate page screenshots
+- `parse(input, quiet?)` - Main entry point for document parsing. Accepts a file path (`string`), `Buffer`, or `Uint8Array`.
+- `screenshot(input, pageNumbers?, quiet?)` - Generate page screenshots. Accepts the same input types as `parse()`.
 - `getConfig()` - Returns current configuration
 
 **Pipeline Flow (in `parse()`):**
-1. Convert to PDF if needed (via `convertToPdf`)
+1. **Input routing**: File paths go through `convertToPdf`; PDF buffers go directly to the engine (zero disk I/O); non-PDF buffers are written to temp for conversion via `convertBufferToPdf`
 2. Load PDF document with PDF engine
 3. Extract pages
-4. Run OCR on text-sparse pages/embedded images
+4. Run OCR on text-sparse pages/embedded images (passes image buffers directly to OCR engines — no temp files)
 5. Project pages to grid (spatial text reconstruction)
 6. Build bounding boxes (if enabled)
 7. Format output (JSON or text)
@@ -41,6 +41,7 @@ The core module contains the main orchestrator class, configuration management, 
 
 **Configuration Types:**
 - `LiteParseConfig` - All configuration options
+- `LiteParseInput` - Accepted input types: `string | Buffer | Uint8Array`
 - `OutputFormat` - 'json' | 'text'
 
 **Data Types:**
