@@ -1,7 +1,7 @@
 export interface OcrEngine {
   name: string;
-  recognize(imagePath: string, options: OcrOptions): Promise<OcrResult[]>;
-  recognizeBatch(imagePaths: string[], options: OcrOptions): Promise<OcrResult[][]>;
+  recognize(image: string | Buffer, options: OcrOptions): Promise<OcrResult[]>;
+  recognizeBatch(images: (string | Buffer)[], options: OcrOptions): Promise<OcrResult[][]>;
 }
 
 export interface OcrOptions {

@@ -2,7 +2,7 @@ import { TextItem } from "../../core/types.js";
 
 export interface PdfEngine {
   name: string;
-  loadDocument(filePath: string): Promise<PdfDocument>;
+  loadDocument(input: string | Uint8Array): Promise<PdfDocument>;
   extractPage(doc: PdfDocument, pageNum: number): Promise<PageData>;
   extractAllPages(doc: PdfDocument, maxPages?: number, targetPages?: string): Promise<PageData[]>;
   renderPageImage(doc: PdfDocument, pageNum: number, dpi: number): Promise<Buffer>;

@@ -2,6 +2,15 @@ import { promises as fs, constants as fsConstants } from "fs";
 import { spawn } from "child_process";
 import path from "path";
 import os from "os";
+import { fileTypeFromFile, fileTypeFromBuffer } from "file-type";
+
+/**
+ * Returns the temp directory for LiteParse operations.
+ * Respects the `LITEPARSE_TMPDIR` environment variable, falling back to the OS default.
+ */
+export function getTmpDir(): string {
+  return process.env.LITEPARSE_TMPDIR || os.tmpdir();
+}
 
 export interface ConversionResult {
   pdfPath: string;
@@ -67,7 +76,8 @@ export const imageExtensions = [
 export const htmlExtensions = [".htm", ".html", ".xhtml"];
 
 /**
- * Guess file extension from file content
+ * Guess file extension from file content using file-type magic byte detection.
+ * Returns the path's own extension if present, otherwise inspects file bytes.
  */
 export async function guessFileExtension(filePath: string): Promise<string> {
   const ext = path.extname(filePath).toLowerCase();
@@ -75,34 +85,12 @@ export async function guessFileExtension(filePath: string): Promise<string> {
     return ext;
   }
 
-  // Read first few bytes to detect file type
-  const buffer = Buffer.alloc(16);
-  const fd = await fs.open(filePath, "r");
-  await fd.read(buffer, 0, 16, 0);
-  await fd.close();
-
-  // PDF: %PDF
-  if (buffer.toString("utf-8", 0, 4) === "%PDF") {
-    return ".pdf";
+  const result = await fileTypeFromFile(filePath);
+  if (result) {
+    return `.${result.ext}`;
   }
 
-  // PNG: 89 50 4E 47
-  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
-    return ".png";
-  }
-
-  // JPEG: FF D8 FF
-  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
-    return ".jpg";
-  }
-
-  // ZIP-based formats (docx, xlsx, etc): PK
-  if (buffer[0] === 0x50 && buffer[1] === 0x4b) {
-    // Could be docx, xlsx, pptx, odt, etc.
-    return ".docx"; // Default to docx for now
-  }
-
-  return ext || ".pdf";
+  return ".pdf"; // Default assumption for extensionless files
 }
 
 /**
@@ -368,7 +356,7 @@ export async function convertToPdf(
     }
 
     // Create temp directory for output
-    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "liteparse-"));
+    const tmpDir = await fs.mkdtemp(path.join(getTmpDir(), "liteparse-"));
 
     // Convert based on file type
     let pdfPath: string;
@@ -406,11 +394,39 @@ export async function convertToPdf(
 export async function cleanupConversionFiles(pdfPath: string): Promise<void> {
   try {
     // Only delete if in temp directory
-    if (pdfPath.includes(os.tmpdir())) {
+    if (pdfPath.includes(getTmpDir())) {
       const dir = path.dirname(pdfPath);
       await fs.rm(dir, { recursive: true, force: true });
     }
   } catch {
     // Ignore cleanup errors
   }
+}
+
+/**
+ * Guess file extension from raw bytes using file-type magic byte detection.
+ */
+export async function guessExtensionFromBuffer(data: Buffer | Uint8Array): Promise<string> {
+  const result = await fileTypeFromBuffer(data);
+  if (result) {
+    return `.${result.ext}`;
+  }
+  return ".pdf"; // Default assumption
+}
+
+/**
+ * Convert a raw byte buffer to PDF by writing to a temp file and converting.
+ * For PDF buffers, callers should skip this and pass data directly to the PDF engine.
+ */
+export async function convertBufferToPdf(
+  data: Buffer | Uint8Array
+): Promise<ConversionResult | ConversionPassthrough | ConversionError> {
+  const ext = await guessExtensionFromBuffer(data);
+
+  // Write buffer to temp file with detected extension
+  const tmpDir = await fs.mkdtemp(path.join(getTmpDir(), "liteparse-"));
+  const tmpPath = path.join(tmpDir, `input${ext}`);
+  await fs.writeFile(tmpPath, data);
+
+  return convertToPdf(tmpPath);
 }

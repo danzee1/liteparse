@@ -1,5 +1,11 @@
 import pLimit from "p-limit";
-import { LiteParseConfig, ParseResult, ScreenshotResult, TextItem } from "./types.js";
+import {
+  LiteParseConfig,
+  LiteParseInput,
+  ParseResult,
+  ScreenshotResult,
+  TextItem,
+} from "./types.js";
 import { mergeConfig } from "./config.js";
 import { PdfEngine, PdfDocument, PageData } from "../engines/pdf/interface.js";
 import { PdfJsEngine } from "../engines/pdf/pdfjs.js";
@@ -10,7 +16,12 @@ import { HttpOcrEngine } from "../engines/ocr/http-simple.js";
 import { projectPagesToGrid } from "../processing/grid.js";
 import { buildBoundingBoxes } from "../processing/bbox.js";
 import { formatJSON } from "../output/json.js";
-import { convertToPdf, cleanupConversionFiles } from "../conversion/convertToPdf.js";
+import {
+  convertToPdf,
+  convertBufferToPdf,
+  cleanupConversionFiles,
+  guessExtensionFromBuffer,
+} from "../conversion/convertToPdf.js";
 import { cleanOcrTableArtifacts } from "../processing/textUtils.js";
 
 /**
@@ -78,44 +89,72 @@ export class LiteParse {
    * Supports PDFs natively. Non-PDF formats (DOCX, XLSX, images, etc.) are automatically
    * converted to PDF before parsing if the required system tools are installed.
    *
-   * @param filePath - Path to the document file.
+   * @param input - A file path, `Buffer`, or `Uint8Array` containing document bytes.
+   *   When given raw bytes, PDF data is parsed directly with zero disk I/O.
+   *   Non-PDF bytes are written to a temp file for format conversion.
    * @param quiet - If `true`, suppresses progress logging to stderr.
    * @returns Parsed document data including text, per-page info, and optional JSON.
    *
    * @throws Error if the file cannot be found, converted, or parsed.
    */
-  async parse(filePath: string, quiet = false): Promise<ParseResult> {
+  async parse(input: LiteParseInput, quiet = false): Promise<ParseResult> {
     const log = (msg: string) => {
       if (!quiet) console.error(msg); // Progress goes to stderr
     };
 
-    log(`Processing file: ${filePath}`);
-    const conversionResult = await convertToPdf(filePath);
+    let doc: PdfDocument;
+    let needsCleanup = false;
+    let cleanupPath: string | undefined;
 
-    if ("code" in conversionResult) {
-      // Conversion error
-      throw new Error(`Conversion failed: ${conversionResult.message}`);
+    if (typeof input === "string") {
+      log(`Processing file: ${input}`);
+      const conversionResult = await convertToPdf(input);
+
+      if ("code" in conversionResult) {
+        throw new Error(`Conversion failed: ${conversionResult.message}`);
+      }
+
+      if ("content" in conversionResult) {
+        log(`File is a text-based format. Returning content directly.`);
+        return { pages: [], text: conversionResult.content };
+      }
+
+      const pdfPath = conversionResult.pdfPath;
+      needsCleanup = pdfPath !== input;
+      if (needsCleanup) {
+        cleanupPath = pdfPath;
+        log(`Converted ${conversionResult.originalExtension} to PDF`);
+      }
+
+      doc = await this.pdfEngine.loadDocument(pdfPath);
+    } else {
+      log(`Processing buffer input (${input.byteLength} bytes)`);
+      const ext = await guessExtensionFromBuffer(input);
+
+      if (ext === ".pdf") {
+        // Zero-disk path: pass bytes directly to the PDF engine
+        const data = input instanceof Uint8Array ? input : new Uint8Array(input);
+        doc = await this.pdfEngine.loadDocument(data);
+      } else {
+        // Non-PDF buffer: write to temp file for conversion
+        const conversionResult = await convertBufferToPdf(input);
+
+        if ("code" in conversionResult) {
+          throw new Error(`Conversion failed: ${conversionResult.message}`);
+        }
+
+        if ("content" in conversionResult) {
+          log(`Buffer is a text-based format. Returning content directly.`);
+          return { pages: [], text: conversionResult.content };
+        }
+
+        needsCleanup = true;
+        cleanupPath = conversionResult.pdfPath;
+        log(`Converted ${conversionResult.originalExtension} buffer to PDF`);
+        doc = await this.pdfEngine.loadDocument(conversionResult.pdfPath);
+      }
     }
 
-    // Return early for text-based passthrough formats
-    if ("content" in conversionResult) {
-      log(`File is a text-based format. Returning content directly.`);
-      return {
-        pages: [],
-        text: conversionResult.content,
-      };
-    }
-
-    // Convert to PDF if needed
-    const pdfPath = conversionResult.pdfPath;
-    const needsCleanup = pdfPath !== filePath;
-
-    if (needsCleanup) {
-      log(`Converted ${conversionResult.originalExtension} to PDF`);
-    }
-
-    // Load PDF document
-    const doc = await this.pdfEngine.loadDocument(pdfPath);
     log(`Loaded PDF with ${doc.numPages} pages`);
 
     // Extract pages
@@ -152,8 +191,8 @@ export class LiteParse {
     }
 
     // Cleanup temporary conversion files
-    if (needsCleanup) {
-      await cleanupConversionFiles(pdfPath);
+    if (needsCleanup && cleanupPath) {
+      await cleanupConversionFiles(cleanupPath);
     }
 
     const result: ParseResult = {
@@ -180,13 +219,13 @@ export class LiteParse {
    * Uses PDFium for high-quality rendering. Each page is returned as a
    * {@link ScreenshotResult} with the raw image buffer and dimensions.
    *
-   * @param filePath - Path to the PDF file.
+   * @param input - A file path, `Buffer`, or `Uint8Array` containing PDF bytes.
    * @param pageNumbers - 1-indexed page numbers to screenshot. If omitted, all pages are rendered.
    * @param quiet - If `true`, suppresses progress logging to stderr.
    * @returns Array of screenshot results, one per rendered page.
    */
   async screenshot(
-    filePath: string,
+    input: LiteParseInput,
     pageNumbers?: number[],
     quiet = false
   ): Promise<ScreenshotResult[]> {
@@ -194,11 +233,14 @@ export class LiteParse {
       if (!quiet) console.error(msg); // Progress goes to stderr
     };
 
-    log(`Generating screenshots for: ${filePath}`);
+    log(`Generating screenshots for: ${typeof input === "string" ? input : "<buffer>"}`);
 
     // Load PDF document to get page count and dimensions
-    const doc = await this.pdfEngine.loadDocument(filePath);
+    const doc = await this.pdfEngine.loadDocument(input as string | Uint8Array);
     const totalPages = doc.numPages;
+
+    // Determine the input to pass to the renderer (file path or buffer)
+    const rendererInput: string | Buffer | Uint8Array = typeof input === "string" ? input : input;
 
     const results: ScreenshotResult[] = [];
     const pages = pageNumbers || Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -214,7 +256,11 @@ export class LiteParse {
         }
 
         log(`Rendering page ${pageNum}...`);
-        const imageBuffer = await renderer.renderPageToBuffer(filePath, pageNum, this.config.dpi);
+        const imageBuffer = await renderer.renderPageToBuffer(
+          rendererInput,
+          pageNum,
+          this.config.dpi
+        );
 
         // Get page dimensions
         const pageData = await this.pdfEngine.extractPage(doc, pageNum);
@@ -278,20 +324,12 @@ export class LiteParse {
     }
 
     try {
-      // Render page as image
+      // Render page as image buffer
       const imageBuffer = await this.pdfEngine.renderPageImage(doc, page.pageNum, this.config.dpi);
 
-      // Save temporary image file
-      const fs = await import("fs/promises");
-      const path = await import("path");
-      const os = await import("os");
-      const tmpDir = os.tmpdir();
-      const tmpImagePath = path.join(tmpDir, `page_${page.pageNum}_ocr.png`);
-      await fs.writeFile(tmpImagePath, imageBuffer);
-
-      // Run OCR
+      // Run OCR directly on the buffer (no temp file needed)
       log(`  OCR on page ${page.pageNum}...`);
-      const ocrResults = await this.ocrEngine.recognize(tmpImagePath, {
+      const ocrResults = await this.ocrEngine.recognize(imageBuffer, {
         language: this.config.ocrLanguage,
         correctRotation: true,
       });
@@ -384,9 +422,6 @@ export class LiteParse {
         page.textItems.push(...ocrTextItems);
         log(`  Found ${ocrTextItems.length} text items from OCR on page ${page.pageNum}`);
       }
-
-      // Clean up temp file
-      await fs.unlink(tmpImagePath).catch(() => {});
     } catch (error) {
       log(`  OCR failed for page ${page.pageNum}: ${error}`);
     }

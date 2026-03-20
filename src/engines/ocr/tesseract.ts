@@ -94,7 +94,7 @@ export class TesseractEngine implements OcrEngine {
     this.currentLanguage = language;
   }
 
-  async recognize(imagePath: string, options: OcrOptions): Promise<OcrResult[]> {
+  async recognize(image: string | Buffer, options: OcrOptions): Promise<OcrResult[]> {
     // Handle language - tesseract.js uses language codes like 'eng', 'fra', 'deu'
     const language = this.normalizeLanguage(
       Array.isArray(options.language) ? options.language[0] : options.language
@@ -109,10 +109,11 @@ export class TesseractEngine implements OcrEngine {
 
     try {
       // Recognize text from image using scheduler
+      // tesseract.js accepts string (path/URL) or Buffer/Uint8Array
       // In tesseract.js v6+, we need to enable blocks output to get word-level data
       const {
         data: { blocks },
-      } = await this.scheduler.addJob("recognize", imagePath, {}, { blocks: true });
+      } = await this.scheduler.addJob("recognize", image, {}, { blocks: true });
 
       // Extract words from hierarchical blocks structure: blocks → paragraphs → lines → words
       const results: OcrResult[] = [];
@@ -138,12 +139,13 @@ export class TesseractEngine implements OcrEngine {
       // Filter out low confidence results (below 30%)
       return results.filter((r) => r.confidence > 0.3);
     } catch (error) {
-      console.error(`\nTesseract OCR error for ${imagePath}:`, error);
+      const label = typeof image === "string" ? image : "<buffer>";
+      console.error(`\nTesseract OCR error for ${label}:`, error);
       return [];
     }
   }
 
-  async recognizeBatch(imagePaths: string[], options: OcrOptions): Promise<OcrResult[][]> {
+  async recognizeBatch(images: (string | Buffer)[], options: OcrOptions): Promise<OcrResult[][]> {
     // Handle language
     const language = this.normalizeLanguage(
       Array.isArray(options.language) ? options.language[0] : options.language
@@ -157,7 +159,7 @@ export class TesseractEngine implements OcrEngine {
     }
 
     // Process all images in parallel - scheduler handles distribution
-    const jobs = imagePaths.map((imagePath) => this.recognize(imagePath, options));
+    const jobs = images.map((image) => this.recognize(image, options));
 
     return Promise.all(jobs);
   }

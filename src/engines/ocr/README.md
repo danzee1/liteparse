@@ -10,8 +10,8 @@ OCR engines for extracting text from images.
 ```typescript
 interface OcrEngine {
   name: string;
-  recognize(imagePath: string, options: OcrOptions): Promise<OcrResult[]>;
-  recognizeBatch(imagePaths: string[], options: OcrOptions): Promise<OcrResult[][]>;
+  recognize(image: string | Buffer, options: OcrOptions): Promise<OcrResult[]>;
+  recognizeBatch(images: (string | Buffer)[], options: OcrOptions): Promise<OcrResult[][]>;
 }
 
 interface OcrOptions {
@@ -35,9 +35,11 @@ This is the default OCR engine when no `ocrServerUrl` is configured.
 
 **Key Features:**
 - Worker-based processing (runs in background thread)
+- Accepts file paths or `Buffer` input directly (no temp files needed)
 - Language caching (reuses worker for same language)
 - Automatic language code normalization (e.g., `en` → `eng`)
 - Low-confidence filtering (removes results < 30%)
+- Supports offline usage via `TESSDATA_PREFIX` env var or `tessdataPath` config for pre-downloaded `.traineddata` files
 
 **Language Normalization:**
 Maps common ISO 639-1 codes to Tesseract's 3-letter codes:
@@ -47,8 +49,8 @@ Maps common ISO 639-1 codes to Tesseract's 3-letter codes:
 
 **Lifecycle:**
 - `initialize(language)` - Create/recreate worker for language
-- `recognize(imagePath, options)` - OCR single image
-- `recognizeBatch(imagePaths, options)` - OCR multiple images sequentially
+- `recognize(image, options)` - OCR single image (accepts file path or Buffer)
+- `recognizeBatch(images, options)` - OCR multiple images sequentially
 - `terminate()` - Clean up worker (called by LiteParse after parsing)
 
 **Design Decisions:**

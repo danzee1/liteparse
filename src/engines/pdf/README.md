@@ -11,13 +11,15 @@ PDF parsing engines for loading documents and extracting content.
 ```typescript
 interface PdfEngine {
   name: string;
-  loadDocument(filePath: string): Promise<PdfDocument>;
+  loadDocument(input: string | Uint8Array): Promise<PdfDocument>;
   extractPage(doc: PdfDocument, pageNum: number): Promise<PageData>;
   extractAllPages(doc, maxPages?, targetPages?): Promise<PageData[]>;
   renderPageImage(doc, pageNum, dpi): Promise<Buffer>;
   close(doc: PdfDocument): Promise<void>;
 }
 ```
+
+`loadDocument` accepts either a file path or raw PDF bytes as a `Uint8Array`. When given bytes, the document is loaded with zero disk I/O.
 
 **Key Data Types:**
 - `PdfDocument` - Loaded document with `numPages`, `data` (Uint8Array), `metadata`
@@ -69,9 +71,9 @@ When garbled text is detected:
 This allows targeted OCR replacement of only the corrupted text while preserving high-quality PDF text extraction elsewhere.
 
 **Design Decisions:**
-- **Stores PDF path**: Needed for PDFium rendering (pdfjs.ts:95)
-- **Filters off-page items**: Removes text with negative coords or beyond page bounds (pdfjs.ts:191-198)
-- **Zero-size filtering**: Skips text items with 0 width/height (pdfjs.ts:125)
+- **Stores PDF path and data**: Keeps both the file path (when available) and the raw `Uint8Array` data for PDFium rendering. Buffer input skips file reads entirely.
+- **Filters off-page items**: Removes text with negative coords or beyond page bounds
+- **Zero-size filtering**: Skips text items with 0 width/height
 
 ---
 
@@ -88,7 +90,7 @@ Used for generating page images for OCR and the `screenshot` command. Provides b
 
 **Methods:**
 - `init()` - Initialize PDFium library (called automatically)
-- `renderPageToBuffer(pdfPath, pageNumber, dpi)` - Render page to PNG buffer
+- `renderPageToBuffer(pdfInput, pageNumber, dpi)` - Render page to PNG buffer. Accepts a file path (`string`), `Buffer`, or `Uint8Array`.
 - `close()` - Cleanup PDFium resources
 
 **Design Decision:**
