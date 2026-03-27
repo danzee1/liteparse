@@ -599,7 +599,22 @@ export class PdfJsEngine implements PdfEngine {
       });
     }
 
-    const images: Image[] = [];
+    let images: Image[] = [];
+    try {
+      if (!this.pdfiumRenderer) {
+        this.pdfiumRenderer = new PdfiumRenderer();
+      }
+      const pdfInput = this.currentPdfPath || this.currentPdfData || doc.data;
+      const imageBounds = await this.pdfiumRenderer.extractImageBounds(pdfInput, pageNum);
+      images = imageBounds.map((bounds) => ({
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      }));
+    } catch {
+      // Image extraction is best-effort
+    }
 
     // Skip annotation extraction - not currently used in processing pipeline
     // Can be re-enabled if needed for link extraction, etc.
