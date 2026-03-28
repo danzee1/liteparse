@@ -255,9 +255,7 @@ export class LiteParse {
       }
 
       if ("content" in conversionResult) {
-        throw new Error(
-          `Cannot screenshot text-based format. Convert to PDF first.`
-        );
+        throw new Error(`Cannot screenshot text-based format. Convert to PDF first.`);
       }
 
       const pdfPath = conversionResult.pdfPath;
@@ -284,9 +282,7 @@ export class LiteParse {
         }
 
         if ("content" in conversionResult) {
-          throw new Error(
-            `Cannot screenshot text-based format. Convert to PDF first.`
-          );
+          throw new Error(`Cannot screenshot text-based format. Convert to PDF first.`);
         }
 
         needsCleanup = true;
@@ -311,11 +307,7 @@ export class LiteParse {
         }
 
         log(`Rendering page ${pageNum}...`);
-        const imageBuffer = await renderer.renderPageToBuffer(
-          pdfInput,
-          pageNum,
-          this.config.dpi
-        );
+        const imageBuffer = await renderer.renderPageToBuffer(pdfInput, pageNum, this.config.dpi);
 
         const pageData = await this.pdfEngine.extractPage(doc, pageNum);
 
