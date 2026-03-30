@@ -85,7 +85,7 @@ export const htmlExtensions = [".htm", ".html", ".xhtml"];
  * Guess file extension from file content using file-type magic byte detection.
  * Returns the path's own extension if present, otherwise inspects file bytes.
  */
-export async function guessFileExtension(filePath: string): Promise<string> {
+export async function guessFileExtension(filePath: string): Promise<string | null> {
   const ext = path.extname(filePath).toLowerCase();
   if (ext) {
     return ext;
@@ -96,7 +96,7 @@ export async function guessFileExtension(filePath: string): Promise<string> {
     return `.${result.ext}`;
   }
 
-  return ".pdf"; // Default assumption for extensionless files
+  return null;
 }
 
 /**
@@ -423,6 +423,12 @@ export async function convertToPdf(
       };
     }
 
+    // Unknown format or text-based — pass through as text
+    if (!extension) {
+      const content = await fs.readFile(filePath, "utf-8");
+      return { content };
+    }
+
     // Create temp directory for output
     const tmpDir = await fs.mkdtemp(path.join(getTmpDir(), "liteparse-"));
 
@@ -436,12 +442,8 @@ export async function convertToPdf(
     } else if (imageExtensions.includes(extension)) {
       pdfPath = await convertImageToPdf(filePath, tmpDir);
     } else {
-      // Unsupported format
-      // Assume its a text-based format and pass through text directly
       const content = await fs.readFile(filePath, "utf-8");
-      return {
-        content,
-      };
+      return { content };
     }
 
     return {
@@ -474,12 +476,12 @@ export async function cleanupConversionFiles(pdfPath: string): Promise<void> {
 /**
  * Guess file extension from raw bytes using file-type magic byte detection.
  */
-export async function guessExtensionFromBuffer(data: Buffer | Uint8Array): Promise<string> {
+export async function guessExtensionFromBuffer(data: Buffer | Uint8Array): Promise<string | null> {
   const result = await fileTypeFromBuffer(data);
   if (result) {
     return `.${result.ext}`;
   }
-  return ".pdf"; // Default assumption
+  return null;
 }
 
 /**
@@ -492,9 +494,9 @@ export async function convertBufferToPdf(
 ): Promise<ConversionResult | ConversionPassthrough | ConversionError> {
   const ext = await guessExtensionFromBuffer(data);
 
-  // Write buffer to temp file with detected extension
+  // Write buffer to temp file with detected extension (use .bin for unknown)
   const tmpDir = await fs.mkdtemp(path.join(getTmpDir(), "liteparse-"));
-  const tmpPath = path.join(tmpDir, `input${ext}`);
+  const tmpPath = path.join(tmpDir, `input${ext || ".bin"}`);
   await fs.writeFile(tmpPath, data);
 
   return convertToPdf(tmpPath, password);

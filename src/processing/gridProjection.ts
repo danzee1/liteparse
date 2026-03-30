@@ -449,15 +449,21 @@ function extractAnchorsPointsFromLines(lines: ProjectionTextBox[][], page: PageD
         if (item.rightAnchor) {
           const key = parseFloat(item.rightAnchor);
           if (anchorRight[key]) {
-            anchorRight[key].splice(anchorRight[key].indexOf(item), 1);
-            hasChanged = true;
+            const idx = anchorRight[key].indexOf(item);
+            if (idx >= 0) {
+              anchorRight[key].splice(idx, 1);
+              hasChanged = true;
+            }
           }
         }
         if (item.centerAnchor) {
           const key = parseFloat(item.centerAnchor);
           if (anchorCenter[key]) {
-            anchorCenter[key].splice(anchorCenter[key].indexOf(item), 1);
-            hasChanged = true;
+            const idx = anchorCenter[key].indexOf(item);
+            if (idx >= 0) {
+              anchorCenter[key].splice(idx, 1);
+              hasChanged = true;
+            }
           }
         }
         duplicates.splice(i, 1);
@@ -487,8 +493,11 @@ function extractAnchorsPointsFromLines(lines: ProjectionTextBox[][], page: PageD
         if (item.centerAnchor) {
           const key = parseFloat(item.centerAnchor);
           if (anchorCenter[key]) {
-            anchorCenter[key].splice(anchorCenter[key].indexOf(item), 1);
-            hasChanged = true;
+            const idx = anchorCenter[key].indexOf(item);
+            if (idx >= 0) {
+              anchorCenter[key].splice(idx, 1);
+              hasChanged = true;
+            }
           }
         }
         duplicates.splice(i, 1);
@@ -502,13 +511,19 @@ function extractAnchorsPointsFromLines(lines: ProjectionTextBox[][], page: PageD
     if (item.leftAnchor) {
       const key = parseFloat(item.leftAnchor);
       if (anchorLeft[key]) {
-        anchorLeft[key].splice(anchorLeft[key].indexOf(item), 1);
+        const idx = anchorLeft[key].indexOf(item);
+        if (idx >= 0) {
+          anchorLeft[key].splice(idx, 1);
+        }
       }
     }
     if (item.rightAnchor) {
       const key = parseFloat(item.rightAnchor);
       if (anchorRight[key]) {
-        anchorRight[key].splice(anchorRight[key].indexOf(item), 1);
+        const idx = anchorRight[key].indexOf(item);
+        if (idx >= 0) {
+          anchorRight[key].splice(idx, 1);
+        }
       }
     }
   }

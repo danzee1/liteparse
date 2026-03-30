@@ -196,9 +196,9 @@ describe("test guessFileExtension", () => {
     expect(await guessFileExtension("/some/file")).toBe(".png");
   });
 
-  it("defaults to .pdf when file-type returns undefined", async () => {
+  it("returns null when file-type returns undefined", async () => {
     mockFileTypeFromFile.mockResolvedValue(undefined);
-    expect(await guessFileExtension("/some/file")).toBe(".pdf");
+    expect(await guessFileExtension("/some/file")).toBeNull();
   });
 
   it("returns extension directly if present", async () => {
@@ -389,9 +389,9 @@ describe("test guessExtensionFromBuffer", () => {
     expect(await guessExtensionFromBuffer(zipBytes)).toBe(".zip");
   });
 
-  it("defaults to .pdf for unknown bytes", async () => {
+  it("returns null for unknown bytes", async () => {
     const unknownBytes = Buffer.from([0x00, 0x01, 0x02, 0x03]);
-    expect(await guessExtensionFromBuffer(unknownBytes)).toBe(".pdf");
+    expect(await guessExtensionFromBuffer(unknownBytes)).toBeNull();
   });
 
   it("works with Uint8Array input", async () => {

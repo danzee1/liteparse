@@ -244,7 +244,7 @@ program
       // Save screenshots
       for (const result of results) {
         const filename = `page_${result.pageNum}.${options.format || DEFAULT_SCREENSHOT_FORMAT}`;
-        const filepath = `${outputDir}/${filename}`;
+        const filepath = path.join(outputDir, filename);
         await fs.writeFile(filepath, result.imageBuffer);
         if (!quiet) {
           console.error(`✓ ${filepath} (${result.width}x${result.height})`);

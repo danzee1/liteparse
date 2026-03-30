@@ -298,6 +298,7 @@ export class LiteParse {
     const pages = pageNumbers || Array.from({ length: totalPages }, (_, i) => i + 1);
 
     const renderer = new PdfiumRenderer();
+    await renderer.loadDocument(pdfInput, this.config.password);
 
     try {
       for (const pageNum of pages) {
